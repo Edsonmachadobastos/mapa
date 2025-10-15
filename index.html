@@ -1,600 +1,271 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Mapa Bermuda - Planner PRO (Rotas, Ícones, Replay, Squad) - Responsive</title>
+<title>Planner PRO Mobile - Mapas</title>
 <style>
-  :root{
-    --bg:#070707; --panel:#0f1113; --accent:#00eaff; --muted:#9a9a9a;
-    --card: rgba(255,255,255,0.02);
-    --glass: rgba(255,255,255,0.03);
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent}
-  html,body{height:100%; margin:0; font-family:Inter, system-ui, Arial, sans-serif; background:var(--bg); color:#fff}
-  body{display:flex; min-height:100vh; overflow:hidden; flex-direction:row}
-
-  /* Header (mobile) */
-  header{
-    display:none; align-items:center; gap:12px; padding:12px 14px;
-    background:linear-gradient(180deg,#0b0b0b,#0f1012); border-bottom:1px solid rgba(255,255,255,0.03);
-  }
+  :root{ --bg:#070707; --panel:#0f1113; --accent:#00eaff; --muted:#8b8b8b; }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; font-family:Inter, system-ui, Arial; background:var(--bg); color:#fff; display:flex; flex-direction:column;}
+  header{ display:flex; align-items:center; gap:12px; padding:12px 16px; background:linear-gradient(180deg,#0b0b0b,#0f1012); border-bottom:1px solid rgba(255,255,255,0.03); }
   .brand{ font-weight:700; color:var(--accent); font-size:16px }
   .hamburger{ width:44px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:#0b0b0c; cursor:pointer }
-  .hamburger:active{ transform:scale(.98) }
+  .hamburger:active{ transform:scale(0.98) }
+  .hamburger svg{ display:block }
 
-  /* Sidebar (tools) */
-  #sidebar{
-    width:320px; max-width:40vw; background:linear-gradient(180deg,#0b0b0b,#0f1012);
-    border-right:1px solid rgba(255,255,255,0.03); padding:18px; overflow:auto; transition:transform .28s ease, box-shadow .2s ease;
+  #sidebar{ width:86vw; max-width:380px; background:linear-gradient(180deg,#0b0b0b, #0f1012); border-right:1px solid rgba(255,255,255,0.03); padding:14px; overflow:auto; position:fixed; top:0; left:0; bottom:0; transform:translateX(-110%); transition:transform .28s ease; z-index:50;}
+  #sidebar.show{ transform:translateX(0); }
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:40; display:none;}
+  .overlay.show{ display:block; }
+
+  h2{margin:0 0 12px 0; font-size:18px; color:var(--accent)}
+  .section{margin-bottom:16px; padding:10px; background:rgba(255,255,255,0.02); border-radius:8px}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px}
+  button, select, input[type="text"]{
+    background:#0b0b0c; border:1px solid rgba(255,255,255,0.06); color:#fff; padding:10px 12px; border-radius:8px; font-size:13px; width:100%; margin-bottom:8px; cursor:pointer;
   }
-  #sidebar.mobile-hidden{ transform: translateX(-110%); position:fixed; z-index:60; top:0; left:0; bottom:0; box-shadow:8px 0 30px rgba(0,0,0,0.6); }
-  #sidebar.mobile-shown{ transform: translateX(0); }
+  .row{display:flex; gap:8px}
+  .small{padding:10px 12px; flex:1}
+  .routes-list{display:flex; flex-direction:column; gap:6px}
+  .route-item{display:flex; align-items:center; gap:8px; padding:6px; background:rgba(255,255,255,0.02); border-radius:6px}
+  .color-box{width:14px; height:14px; border-radius:3px; border:1px solid rgba(255,255,255,0.06)}
+  .labelName{font-weight:600; font-size:14px}
+  #main{ flex:1; display:flex; flex-direction:column; align-items:center; padding:12px; overflow:auto; position:relative; }
+  #mapWrap{ width:100%; max-width:100%; aspect-ratio:1/1; background:#000; border-radius:10px; position:relative; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,0.6); }
+  #mapImg{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; user-select:none; -webkit-user-drag:none}
+  canvas{position:absolute; left:0; top:0; width:100%; height:100%}
 
-  h2{ margin:0 0 12px 0; font-size:18px; color:var(--accent) }
-  .section{ margin-bottom:16px; padding:10px; background:var(--card); border-radius:10px }
-  label{ display:block; font-size:13px; color:var(--muted); margin-bottom:6px }
-  button, select, input[type="text"], textarea{
-    background:#0b0b0c; border:1px solid rgba(255,255,255,0.06); color:#fff; padding:10px 12px;
-    border-radius:10px; font-size:14px; width:100%; margin-bottom:8px; cursor:pointer;
+  .tiny{font-size:12px; color:var(--muted)}
+
+  /* Botão flutuante */
+  #btnFloatMap{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.1);
+    color:#fff;
+    padding:8px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    z-index:100;
+    font-size:13px;
   }
-  .small{ display:inline-block; width:auto; padding:8px 10px; font-size:14px }
-  .row{ display:flex; gap:8px }
-  .checkbox{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:14px; color:#ddd }
-  .muted{ color:var(--muted); font-size:13px }
-  .routes-list{ display:flex; flex-direction:column; gap:8px; max-height:200px; overflow:auto; }
-
-  /* Main */
-  #main{ flex:1; display:flex; flex-direction:column; align-items:center; padding:18px; overflow:auto }
-  #mapWrap{ width:100%; max-width:1100px; aspect-ratio:1/1; background:#000; border-radius:12px; position:relative; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,0.6); touch-action: none; -ms-touch-action:none }
-  #mapImg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; user-select:none; -webkit-user-drag:none }
-  canvas{ position:absolute; left:0; top:0; width:100%; height:100%; display:block }
-  #hintBar{ margin-top:10px; color:var(--muted); font-size:13px; text-align:center }
-
-  .inline{ display:flex; gap:8px } .inline button{ flex:1 }
-  .smallMuted{ font-size:12px; color:var(--muted) }
-  .route-item{ display:flex; align-items:center; gap:8px; padding:8px; background:var(--glass); border-radius:8px }
-  .color-box{ width:14px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,0.06) }
-  .labelName{ font-weight:600; font-size:14px }
-  .tiny{ font-size:12px; color:var(--muted) }
-  .control-row{ display:flex; gap:8px }
-
-  /* overlay when menu open */
-  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:55; display:none }
-  .overlay.show{ display:block }
-
-  /* responsive */
-  @media (max-width:900px){
-    body{ flex-direction:column }
-    header{ display:flex }
-    #sidebar{ width:86vw; max-width:380px; padding:14px }
-    #sidebar.desktop-visible{ display:block }
-    #main{ padding:12px }
-    #mapWrap{ max-width:calc(100vw - 28px); aspect-ratio:1/1 }
-  }
-  @media (min-width:901px){
-    header{ display:none }
-    #sidebar.mobile-hidden{ transform:none; position:relative }
-    #sidebar.mobile-shown{ transform:none }
-  }
-
-  /* small improvements */
-  .top-row{ display:flex; gap:8px; align-items:center }
-  .actions-row{ display:flex; gap:8px; flex-wrap:wrap }
-  /* touch targets */
-  button, input, select{ -webkit-user-select:none; user-select:none; }
-  /* minimal focus style */
-  [tabindex] :focus, button:focus, input:focus, select:focus { outline:2px solid rgba(0,160,255,0.12) }
-
+  #btnFloatMap:active{ transform:scale(0.95); }
 </style>
 </head>
 <body>
-  <!-- Header with hamburger for mobile -->
-  <header>
-    <button id="hamburger" class="hamburger" aria-label="Abrir menu" aria-expanded="false">
-      <svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect y="0" width="20" height="2" rx="1" fill="#fff"/><rect y="6" width="20" height="2" rx="1" fill="#fff"/><rect y="12" width="20" height="2" rx="1" fill="#fff"/></svg>
-    </button>
-    <div class="brand">Planner PRO — Bermuda</div>
-  </header>
+<header>
+  <button id="hamburger" class="hamburger" aria-label="Abrir menu" aria-expanded="false">
+    <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect y="0" width="20" height="2" rx="1" fill="#fff"/><rect y="6" width="20" height="2" rx="1" fill="#fff"/><rect y="12" width="20" height="2" rx="1" fill="#fff"/></svg>
+  </button>
+  <div class="brand">Planner PRO</div>
+</header>
 
-  <!-- Off-canvas sidebar -->
-  <aside id="sidebar" class="mobile-hidden desktop-visible" role="navigation" aria-label="Painel de ferramentas">
-    <h2>Planner PRO — Bermuda</h2>
+<aside id="sidebar" role="navigation" aria-label="Painel de ferramentas">
+  <h2>Planner PRO</h2>
 
-    <div class="section">
-      <label for="routeButtons">Rota ativa</label>
-      <div id="routeButtons" class="row" style="gap:6px;">
-        <button id="btnR1" class="small" data-id="rota1">Rota 1</button>
-        <button id="btnR2" class="small" data-id="rota2">Rota 2</button>
-        <button id="btnR3" class="small" data-id="rota3">Rota 3</button>
-        <button id="btnR4" class="small" data-id="rota4">Rota 4</button>
-      </div>
-      <div style="margin-top:8px">
-        <input id="routeName" type="text" placeholder="Nome da rota (ex: Rush Factory)" />
-        <div class="row">
-          <button id="rename" class="small">Renomear</button>
-          <button id="clearRoute" class="small">Limpar rota</button>
-        </div>
-      </div>
+  <div class="section">
+    <label>Selecionar mapa</label>
+    <select id="mapSelector">
+      <option value="bermuda">Bermuda</option>
+      <option value="map2">Mapa 2</option>
+      <option value="map3">Mapa 3</option>
+      <option value="map4">Mapa 4</option>
+    </select>
+    <button id="btnBackMap" style="margin-top:8px;">🔄 Voltar à seleção de mapa</button>
+  </div>
+
+  <div class="section">
+    <label>Rota ativa</label>
+    <div class="row">
+      <button id="btnR1" class="small">Rota 1</button>
+      <button id="btnR2" class="small">Rota 2</button>
+      <button id="btnR3" class="small">Rota 3</button>
+      <button id="btnR4" class="small">Rota 4</button>
     </div>
-
-    <div class="section">
-      <label>Painel de rotas (mostrar/ocultar)</label>
-      <div class="routes-list" id="routesList" aria-live="polite"></div>
+    <input id="routeName" type="text" placeholder="Nome da rota" />
+    <div class="row">
+      <button id="rename" class="small">Renomear</button>
+      <button id="clearRoute" class="small">Limpar rota</button>
     </div>
+  </div>
 
-    <div class="section">
-      <label>Marcar ponto especial</label>
-      <select id="specialType" aria-label="Tipo de marcador">
-        <option value="loot">📦 Loot</option>
-        <option value="car">🚗 Veículo</option>
-        <option value="weapon">🔫 Arma</option>
-        <option value="sniper">🎯 Sniper spot</option>
-        <option value="drop">🎁 Drop</option>
-      </select>
-      <input id="specialName" type="text" placeholder="Nome do marcador (ex: Bom loot)" />
-      <div class="row">
-        <button id="addSpecialMode" class="small">Ativar: adicionar marcador</button>
-        <button id="clearSpecials" class="small">Limpar marcadores</button>
-      </div>
-      <div class="tiny">Depois de ativar, toque no mapa para posicionar o ícone.</div>
+  <div class="section">
+    <label>Marcar ponto especial</label>
+    <select id="specialType">
+      <option value="loot">📦 Loot</option>
+      <option value="car">🚗 Veículo</option>
+      <option value="weapon">🔫 Arma</option>
+      <option value="sniper">🎯 Sniper spot</option>
+      <option value="drop">🎁 Drop</option>
+    </select>
+    <input id="specialName" type="text" placeholder="Nome do marcador" />
+    <div class="row">
+      <button id="addSpecialMode" class="small">Adicionar marcador</button>
+      <button id="clearSpecials" class="small">Limpar marcadores</button>
     </div>
+  </div>
 
-    <div class="section">
-      <label>Modo Squad (marcar jogadores)</label>
-      <input id="playerName" type="text" placeholder="Nome do jogador (ex: Edson)" />
-      <div class="row">
-        <button id="addPlayerMode" class="small">Ativar: posicionar player</button>
-        <button id="clearPlayers" class="small">Limpar players</button>
-      </div>
-      <div class="tiny">Toque no mapa para colocar o jogador. Arraste para mover.</div>
+  <div class="section">
+    <label>Modo Squad (marcar jogadores)</label>
+    <input id="playerName" type="text" placeholder="Nome do jogador" />
+    <div class="row">
+      <button id="addPlayerMode" class="small">Posicionar player</button>
+      <button id="clearPlayers" class="small">Limpar players</button>
     </div>
+  </div>
 
-    <div class="section">
-      <label>Replay / animação</label>
-      <div class="control-row">
-        <button id="replayAll" class="small">▶️ Reproduzir tudo</button>
-        <button id="stopReplay" class="small">⏹️ Parar</button>
-      </div>
-      <div style="margin-top:8px" class="smallMuted">Você também pode reproduzir rota individual no painel lateral.</div>
+  <div class="section">
+    <label>Replay / animação</label>
+    <div class="row">
+      <button id="replayAll" class="small">▶️ Reproduzir tudo</button>
+      <button id="stopReplay" class="small">⏹️ Parar</button>
     </div>
+  </div>
 
-    <div class="section">
-      <label>Medição (distância)</label>
-      <div class="control-row">
-        <button id="measureMode" class="small">Ativar Medir</button>
-        <button id="clearMeasure" class="small">Limpar</button>
-      </div>
-      <div class="tiny">Toque dois pontos no mapa para ver a distância (px).</div>
+  <div class="section">
+    <label>Salvar/Carregar</label>
+    <div class="row">
+      <button id="saveLocal" class="small">💾 Salvar</button>
+      <button id="loadLocal" class="small">📂 Carregar</button>
     </div>
-
-    <div class="section">
-      <label>Salvar / Carregar / Importar</label>
-      <div class="row">
-        <button id="saveLocal" class="small">💾 Salvar no navegador</button>
-        <button id="loadLocal" class="small">📂 Carregar</button>
-      </div>
-      <div class="row" style="margin-top:6px">
-        <button id="exportPNG" class="small">📸 Exportar PNG</button>
-        <button id="importJSON" class="small">⬆️ Importar JSON</button>
-      </div>
-      <textarea id="importArea" placeholder="Cole JSON aqui para importar" style="margin-top:8px; min-height:64px; resize:vertical"></textarea>
+    <div class="row">
+      <button id="exportPNG" class="small">📸 Exportar PNG</button>
+      <button id="importJSON" class="small">⬆️ Importar JSON</button>
     </div>
+    <input id="importArea" type="text" placeholder="Cole JSON aqui"/>
+  </div>
 
-    <div style="height:40px"></div>
-  </aside>
+  <div style="height:40px"></div>
+</aside>
+<div id="overlay" class="overlay"></div>
 
-  <div id="overlay" class="overlay" tabindex="-1" aria-hidden="true"></div>
-
-  <!-- MAIN: mapa + canvas -->
-  <main id="main">
-    <div id="mapWrap" role="application" aria-label="Mapa interativo">
-      <!-- substitua a src pela sua imagem do mapa caso queira -->
-      <img id="mapImg" src="https://i.postimg.cc/Gm2jNsyB/Captura-de-tela-2025-10-10-152412.png" alt="Mapa Bermuda">
-      <canvas id="canvas" tabindex="0"></canvas>
-    </div>
-    <div id="hintBar">Dica: toque = adicionar ponto na rota ativa | toque e arraste = mover | menu = ações</div>
-  </main>
+<main id="main">
+  <div id="mapWrap">
+    <img id="mapImg" src="https://i.postimg.cc/Gm2jNsyB/Captura-de-tela-2025-10-10-152412.png" alt="Mapa Bermuda">
+    <canvas id="canvas"></canvas>
+    <div id="btnFloatMap">🔄 Trocar mapa</div>
+  </div>
+</main>
 
 <script>
-/* -------------------- Dados iniciais -------------------- */
+/* ======= Variáveis e setup ======= */
 const colors = { rota1:'#ff4d4d', rota2:'#4dd0ff', rota3:'#7cff6f', rota4:'#ffd64d' };
 const routeIds = ['rota1','rota2','rota3','rota4'];
 const routes = { rota1:[], rota2:[], rota3:[], rota4:[] };
 const routeNames = { rota1:'Rota 1', rota2:'Rota 2', rota3:'Rota 3', rota4:'Rota 4' };
 const specials = []; const players = [];
-let activeRoute = 'rota1';
-let addSpecialActive=false, addPlayerActive=false, measureActive=false;
-let measurePoints=[]; let dragging=null; let replayControllers=[];
-let visibleRoutes = { rota1:true, rota2:true, rota3:true, rota4:true };
+let activeRoute='rota1', addSpecialActive=false, addPlayerActive=false, measureActive=false, dragging=null, replayControllers=[];
 
-/* -------------------- Elements -------------------- */
+const maps = {
+  bermuda:{src:"https://i.postimg.cc/Gm2jNsyB/Captura-de-tela-2025-10-10-152412.png",routes:JSON.parse(JSON.stringify(routes)),specials:[],players:[]},
+  map2:{src:"https://i.postimg.cc/XXXX/map2.png",routes:JSON.parse(JSON.stringify(routes)),specials:[],players:[]},
+  map3:{src:"https://i.postimg.cc/XXXX/map3.png",routes:JSON.parse(JSON.stringify(routes)),specials:[],players:[]},
+  map4:{src:"https://i.postimg.cc/XXXX/map4.png",routes:JSON.parse(JSON.stringify(routes)),specials:[],players:[]}
+};
+let activeMap='bermuda';
+
+/* ======= Elementos ======= */
 const hamburger = document.getElementById('hamburger');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('overlay');
-const mapWrap = document.getElementById('mapWrap');
-const mapImg = document.getElementById('mapImg');
-const canvas = document.getElementById('canvas'); const ctx = canvas.getContext('2d');
+const canvas = document.getElementById('canvas'), ctx=canvas.getContext('2d'), mapWrap=document.getElementById('mapWrap'), mapImg=document.getElementById('mapImg');
 
-/* UI buttons */
 const btns = {
   r1: document.getElementById('btnR1'), r2: document.getElementById('btnR2'), r3: document.getElementById('btnR3'), r4: document.getElementById('btnR4'),
   rename: document.getElementById('rename'), routeName: document.getElementById('routeName'), clearRoute: document.getElementById('clearRoute'),
   addSpecialMode: document.getElementById('addSpecialMode'), specialType: document.getElementById('specialType'), specialName: document.getElementById('specialName'), clearSpecials: document.getElementById('clearSpecials'),
   addPlayerMode: document.getElementById('addPlayerMode'), playerName: document.getElementById('playerName'), clearPlayers: document.getElementById('clearPlayers'),
-  replayAll: document.getElementById('replayAll'), stopReplay: document.getElementById('stopReplay'), measureMode: document.getElementById('measureMode'), clearMeasure: document.getElementById('clearMeasure'),
-  saveLocal: document.getElementById('saveLocal'), loadLocal: document.getElementById('loadLocal'), exportPNG: document.getElementById('exportPNG'), importJSON: document.getElementById('importJSON'), importArea: document.getElementById('importArea'), routesList: document.getElementById('routesList')
+  replayAll: document.getElementById('replayAll'), stopReplay: document.getElementById('stopReplay'),
+  saveLocal: document.getElementById('saveLocal'), loadLocal: document.getElementById('loadLocal'),
+  exportPNG: document.getElementById('exportPNG'), importJSON: document.getElementById('importJSON'), importArea: document.getElementById('importArea')
 };
 
-/* -------------------- Mobile menu handling -------------------- */
-function preventBodyScroll(prevent){
-  document.body.style.overflow = prevent ? 'hidden' : '';
-}
-function showMenu(){
-  sidebar.classList.remove('mobile-hidden'); sidebar.classList.add('mobile-shown');
-  overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false');
-  hamburger && hamburger.setAttribute('aria-expanded','true');
-  preventBodyScroll(true);
-}
-function hideMenu(){
-  sidebar.classList.remove('mobile-shown'); sidebar.classList.add('mobile-hidden');
-  overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true');
-  hamburger && hamburger.setAttribute('aria-expanded','false');
-  preventBodyScroll(false);
-}
-if(hamburger){ hamburger.addEventListener('click', ()=>{ const opened = hamburger.getAttribute('aria-expanded') === 'true'; if(opened) hideMenu(); else showMenu(); }); }
-overlay.addEventListener('click', hideMenu);
-window.addEventListener('resize', ()=>{ if(window.innerWidth>900){ sidebar.classList.remove('mobile-hidden'); sidebar.classList.remove('mobile-shown'); overlay.classList.remove('show'); hamburger && hamburger.setAttribute('aria-expanded','false'); preventBodyScroll(false); } else { sidebar.classList.add('mobile-hidden'); } });
+const mapSelector = document.getElementById('mapSelector');
+const btnBackMap = document.getElementById('btnBackMap');
+const btnFloatMap = document.getElementById('btnFloatMap');
 
-/* -------------------- Canvas high-DPI & resize -------------------- */
-function setCanvasSize(){
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const w = Math.floor(mapWrap.clientWidth);
-  const h = Math.floor(mapWrap.clientHeight);
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
-}
-let resizeTimer;
-function resizeCanvasDebounced(){
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(()=>{ setCanvasSize(); drawAll(); }, 60);
-}
-window.addEventListener('resize', resizeCanvasDebounced);
-window.addEventListener('load', ()=>{ setCanvasSize(); renderRoutesList(); setActiveBtnVisual(); drawAll(); });
-
-/* -------------------- UI core interactions -------------------- */
-function setActiveBtnVisual(){
-  [btns.r1,btns.r2,btns.r3,btns.r4].forEach((b,i)=> {
-    const id = routeIds[i];
-    b.style.border = id === activeRoute ? `2px solid ${colors[id]}` : '1px solid rgba(255,255,255,0.06)';
-    b.style.background = id === activeRoute ? 'rgba(255,255,255,0.02)' : '';
-  });
-  btns.routeName.value = routeNames[activeRoute] || '';
-}
-[btns.r1,btns.r2,btns.r3,btns.r4].forEach((b,idx)=> b.addEventListener('click', ()=>{ activeRoute = routeIds[idx]; setActiveBtnVisual(); drawAll(); if(window.innerWidth<=900) hideMenu(); }));
-
-btns.rename.addEventListener('click', ()=> {
-  const v = btns.routeName.value.trim();
-  if(v) routeNames[activeRoute] = v;
-  renderRoutesList(); drawAll();
-  if(window.innerWidth<=900) hideMenu();
+/* ======= Funções menu hambúrguer ======= */
+hamburger.addEventListener('click', ()=>{
+  const opened = sidebar.classList.contains('show');
+  if(opened){ sidebar.classList.remove('show'); overlay.classList.remove('show'); hamburger.setAttribute('aria-expanded','false'); }
+  else{ sidebar.classList.add('show'); overlay.classList.add('show'); hamburger.setAttribute('aria-expanded','true'); }
 });
-btns.clearRoute.addEventListener('click', ()=>{ if(!confirm('Limpar todos os pontos da rota ativa?')) return; routes[activeRoute]=[]; drawAll(); renderRoutesList(); if(window.innerWidth<=900) hideMenu(); });
-
-btns.addSpecialMode.addEventListener('click', ()=> { addSpecialActive = !addSpecialActive; addPlayerActive = false; measureActive = false; updateModeButtons(); if(window.innerWidth<=900 && addSpecialActive) hideMenu(); });
-btns.clearSpecials.addEventListener('click', ()=>{ if(!confirm('Limpar todos os marcadores especiais?')) return; specials.length=0; drawAll(); if(window.innerWidth<=900) hideMenu(); });
-btns.addPlayerMode.addEventListener('click', ()=> { addPlayerActive = !addPlayerActive; addSpecialActive = false; measureActive = false; updateModeButtons(); if(window.innerWidth<=900 && addPlayerActive) hideMenu(); });
-btns.clearPlayers.addEventListener('click', ()=>{ if(!confirm('Limpar todos os players?')) return; players.length=0; drawAll(); if(window.innerWidth<=900) hideMenu(); });
-
-function updateModeButtons(){
-  btns.addSpecialMode.style.border = addSpecialActive ? `2px solid ${colors[activeRoute]}` : '';
-  btns.addPlayerMode.style.border = addPlayerActive ? `2px solid ${colors[activeRoute]}` : '';
-  btns.measureMode.style.border = measureActive ? `2px solid ${colors[activeRoute]}` : '';
-}
-
-btns.measureMode.addEventListener('click', ()=> { measureActive = !measureActive; addPlayerActive=false; addSpecialActive=false; measurePoints=[]; updateModeButtons(); if(window.innerWidth<=900 && measureActive) hideMenu(); drawAll(); });
-btns.clearMeasure.addEventListener('click', ()=> { measurePoints=[]; drawAll(); if(window.innerWidth<=900) hideMenu(); });
-
-btns.saveLocal.addEventListener('click', ()=> {
-  const data = { routes, routeNames, specials, players };
-  try{ localStorage.setItem('ffplanner', JSON.stringify(data)); alert('Salvo no navegador!'); }catch(e){ alert('Erro ao salvar (localStorage).'); }
-  if(window.innerWidth<=900) hideMenu();
-});
-btns.loadLocal.addEventListener('click', ()=> {
-  const raw = localStorage.getItem('ffplanner'); if(!raw){alert('Nada salvo.'); return;}
-  try{
-    const data = JSON.parse(raw);
-    Object.assign(routeNames, data.routeNames || {});
-    Object.keys(routes).forEach(k=> routes[k] = (data.routes && data.routes[k]) ? data.routes[k] : []);
-    specials.length=0; (data.specials||[]).forEach(s=> specials.push(s));
-    players.length=0; (data.players||[]).forEach(p=> players.push(p));
-    renderRoutesList(); drawAll(); alert('Carregado!');
-    if(window.innerWidth<=900) hideMenu();
-  }catch(e){ alert('Erro ao carregar JSON'); }
-});
-btns.exportPNG.addEventListener('click', exportPNG);
-btns.importJSON.addEventListener('click', ()=> {
-  try{
-    const txt = btns.importArea.value.trim();
-    if(!txt) { alert('Cole JSON no campo abaixo antes de importar.'); return; }
-    const data = JSON.parse(txt);
-    Object.assign(routeNames, data.routeNames || {});
-    Object.keys(routes).forEach(k=> routes[k] = (data.routes && data.routes[k]) ? data.routes[k] : []);
-    specials.length=0; (data.specials||[]).forEach(s=> specials.push(s));
-    players.length=0; (data.players||[]).forEach(p=> players.push(p));
-    renderRoutesList(); drawAll(); alert('Import OK');
-    if(window.innerWidth<=900) hideMenu();
-  }catch(e){ alert('JSON inválido'); }
+overlay.addEventListener('click', ()=>{
+  sidebar.classList.remove('show'); overlay.classList.remove('show'); hamburger.setAttribute('aria-expanded','false');
 });
 
-/* -------------------- Routes list UI -------------------- */
-function renderRoutesList(){
-  btns.routesList.innerHTML = '';
-  routeIds.forEach(id=>{
-    const div = document.createElement('div'); div.className='route-item';
-    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!visibleRoutes[id];
-    cb.addEventListener('change', ()=> { visibleRoutes[id] = cb.checked; drawAll(); });
-    const colorBox = document.createElement('div'); colorBox.className='color-box'; colorBox.style.background=colors[id];
-    const name = document.createElement('div'); name.className='labelName'; name.textContent = routeNames[id] || id;
-    const btnPlay = document.createElement('button'); btnPlay.textContent='▶'; btnPlay.className='small'; btnPlay.addEventListener('click', ()=> startReplayForRoute(id));
-    const btnClear = document.createElement('button'); btnClear.textContent='✖'; btnClear.className='small'; btnClear.addEventListener('click', ()=> { if(!confirm('Remover todos os pontos desta rota?')) return; routes[id]=[]; drawAll(); renderRoutesList(); });
-    div.append(cb, colorBox, name, btnPlay, btnClear);
-    btns.routesList.appendChild(div);
-  });
-}
+/* ======= Canvas ======= */
+function resizeCanvas(){ canvas.width = mapWrap.clientWidth; canvas.height = mapWrap.clientHeight; drawAll(); }
+window.addEventListener('resize', resizeCanvas); window.addEventListener('load', resizeCanvas);
 
-/* -------------------- Helpers de posição -------------------- */
-function getCanvasCoords(clientX, clientY){
-  const rect = canvas.getBoundingClientRect();
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
-  return { x: Math.max(0, Math.min(rect.width, x)), y: Math.max(0, Math.min(rect.height, y)) };
-}
-function distance(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+/* ======= UI ======= */
+function setActiveBtnVisual(){ [btns.r1,btns.r2,btns.r3,btns.r4].forEach((b,i)=>{ const id=routeIds[i]; b.style.border = id===activeRoute? `2px solid ${colors[id]}`:'1px solid rgba(255,255,255,0.06)'; }); btns.routeName.value=routeNames[activeRoute]; }
+[btns.r1,btns.r2,btns.r3,btns.r4].forEach((b,i)=> b.addEventListener('click', ()=>{ activeRoute=routeIds[i]; setActiveBtnVisual(); drawAll(); sidebar.classList.remove('show'); overlay.classList.remove('show'); }));
 
-/* -------------------- Pointer interactions (touch-friendly) -------------------- */
-let pointerDownInfo = null;
-mapWrap.addEventListener('pointerdown', (ev)=>{
-  // only handle primary button/touch
-  if(ev.button && ev.button !== 0) return;
-  mapWrap.setPointerCapture(ev.pointerId);
-  const pos = getCanvasCoords(ev.clientX, ev.clientY);
-  pointerDownInfo = { id: ev.pointerId, start: pos, time: Date.now(), moved:false };
+btns.rename.addEventListener('click', ()=>{ const v=btns.routeName.value.trim(); if(v) routeNames[activeRoute]=v; drawAll(); setActiveBtnVisual(); });
+btns.clearRoute.addEventListener('click', ()=>{ routes[activeRoute]=[]; drawAll(); });
 
-  // measure mode
-  if(measureActive){
-    if(measurePoints.length<2) measurePoints.push(pos);
-    if(measurePoints.length>2) measurePoints = [pos];
-    drawAll(); return;
-  }
-  if(addSpecialActive){ specials.push({x:pos.x, y:pos.y, type:btns.specialType.value, name:btns.specialName.value||''}); drawAll(); return; }
-  if(addPlayerActive){ const pname = btns.playerName.value.trim() || `Player${players.length+1}`; players.push({x:pos.x, y:pos.y, name:pname, color: colors[activeRoute]}); drawAll(); return; }
+btns.addSpecialMode.addEventListener('click', ()=>{ addSpecialActive=!addSpecialActive; addPlayerActive=false; measureActive=false; drawAll(); });
+btns.clearSpecials.addEventListener('click', ()=>{ specials.length=0; drawAll(); });
+btns.addPlayerMode.addEventListener('click', ()=>{ addPlayerActive=!addPlayerActive; addSpecialActive=false; measureActive=false; drawAll(); });
+btns.clearPlayers.addEventListener('click', ()=>{ players.length=0; drawAll(); });
 
-  // check players (reverse order for topmost)
-  for(let i=players.length-1;i>=0;i--){ if(distance(players[i],pos) < 16){ dragging={type:'player', index:i}; return; } }
-  for(let i=specials.length-1;i>=0;i--){ if(distance(specials[i],pos) < 16){ dragging={type:'special', index:i}; return; } }
-  const pts = routes[activeRoute];
-  for(let i=0;i<pts.length;i++){ if(distance(pts[i],pos) < 12){ dragging={type:'route', index:i}; return; } }
+function distance(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
 
-  // no hit -> add point to active route
-  routes[activeRoute].push({x:pos.x, y:pos.y});
+/* ======= Map interactions ======= */
+mapWrap.addEventListener('pointerdown', ev=>{
+  const rect=canvas.getBoundingClientRect(); const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
+  if(addSpecialActive){ specials.push({x,y,type:btns.specialType.value,name:btns.specialName.value||''}); drawAll(); return; }
+  if(addPlayerActive){ const pname=btns.playerName.value.trim()||`Player${players.length+1}`; players.push({x,y,name:pname,color:colors[activeRoute]}); drawAll(); return; }
+
+  // Drag
+  for(let i=players.length-1;i>=0;i--){ if(distance(players[i],{x,y})<14){ dragging={type:'player',index:i}; return; } }
+  for(let i=specials.length-1;i>=0;i--){ if(distance(specials[i],{x,y})<14){ dragging={type:'special',index:i}; return; } }
+  const pts=routes[activeRoute];
+  for(let i=0;i<pts.length;i++){ if(distance(pts[i],{x,y})<12){ dragging={type:'route',index:i}; return; } }
+  if(ev.button===0){ routes[activeRoute].push({x,y}); drawAll(); }
+});
+window.addEventListener('pointermove', ev=>{ if(!dragging) return; const rect=canvas.getBoundingClientRect(); const x=ev.clientX-rect.left, y=ev.clientY-rect.top; if(dragging.type==='player'){ players[dragging.index].x=x; players[dragging.index].y=y; } if(dragging.type==='special'){ specials[dragging.index].x=x; specials[dragging.index].y=y; } if(dragging.type==='route'){ routes[activeRoute][dragging.index].x=x; routes[activeRoute][dragging.index].y=y; } drawAll(); });
+window.addEventListener('pointerup', ()=> dragging=null);
+
+/* ======= Drawing ======= */
+function drawAll(){ ctx.clearRect(0,0,canvas.width,canvas.height); drawGrid(); routeIds.forEach(id=>drawRoute(routes[id],colors[id],routeNames[id])); specials.forEach(drawSpecial); players.forEach(drawPlayer); }
+function drawGrid(){ const step=80; ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1; for(let x=0;x<canvas.width;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); } for(let y=0;y<canvas.height;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); } ctx.restore(); }
+function drawRoute(points,color,name){ if(!points||points.length===0)return; ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(points[0].x,points[0].y); for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y); ctx.stroke(); for(let i=0;i<points.length;i++){ const p=points[i]; ctx.beginPath(); ctx.fillStyle=color; ctx.arc(p.x,p.y,6,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='12px Arial'; ctx.fillText((i+1),p.x+8,p.y-8); } ctx.fillStyle=color; ctx.font='bold 13px Arial'; ctx.fillText(name,points[0].x+10,points[0].y+20); ctx.restore(); }
+function drawSpecial(s){ ctx.save(); ctx.beginPath(); ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.arc(s.x,s.y,12,0,Math.PI*2); ctx.fill(); ctx.stroke(); let emoji='❓'; if(s.type==='loot') emoji='📦'; if(s.type==='car') emoji='🚗'; if(s.type==='weapon') emoji='🔫'; if(s.type==='sniper') emoji='🎯'; if(s.type==='drop') emoji='🎁'; ctx.font='16px Arial'; ctx.fillStyle='#fff'; ctx.fillText(emoji,s.x-8,s.y+6); if(s.name){ ctx.font='12px Arial'; ctx.fillText(s.name,s.x+16,s.y+6); } ctx.restore(); }
+function drawPlayer(p){ ctx.save(); ctx.beginPath(); ctx.fillStyle=p.color; ctx.arc(p.x,p.y,10,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='12px Arial'; ctx.fillText(p.name,p.x+14,p.y+4); ctx.restore(); }
+
+/* ======= Replay ======= */
+btns.replayAll.addEventListener('click',()=>{ replayControllers.forEach(c=>clearInterval(c)); replayControllers=[]; routeIds.forEach(id=>{ let pts=routes[id]; if(!pts||pts.length<2)return; let idx=1; const interval=setInterval(()=>{ drawAll(); ctx.beginPath(); ctx.strokeStyle=colors[id]; ctx.lineWidth=4; ctx.moveTo(pts[0].x,pts[0].y); for(let i=1;i<=idx;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.stroke(); idx++; if(idx>=pts.length) clearInterval(interval); },250); replayControllers.push(interval); }); });
+btns.stopReplay.addEventListener('click',()=>{ replayControllers.forEach(c=>clearInterval(c)); replayControllers=[]; drawAll(); });
+
+/* ======= Save/load/export/import ======= */
+btns.saveLocal.addEventListener('click',()=>{ const data={routes,routeNames,specials,players}; localStorage.setItem('plannerData',JSON.stringify(data)); alert('Salvo localmente!'); });
+btns.loadLocal.addEventListener('click',()=>{ const data=JSON.parse(localStorage.getItem('plannerData')||'{}'); if(data.routes) Object.assign(routes,data.routes); if(data.routeNames) Object.assign(routeNames,data.routeNames); if(data.specials) specials.splice(0,specials.length,...data.specials); if(data.players) players.splice(0,players.length,...data.players); drawAll(); setActiveBtnVisual(); });
+
+btns.exportPNG.addEventListener('click',()=>{ const link=document.createElement('a'); link.download='planner.png'; link.href=canvas.toDataURL(); link.click(); });
+btns.importJSON.addEventListener('click',()=>{ try{ const data=JSON.parse(btns.importArea.value); if(data.routes) Object.assign(routes,data.routes); if(data.routeNames) Object.assign(routeNames,data.routeNames); if(data.specials) specials.splice(0,specials.length,...data.specials); if(data.players) players.splice(0,players.length,...data.players); drawAll(); setActiveBtnVisual(); alert('Importado com sucesso!'); }catch(e){alert('JSON inválido')} });
+
+/* ======= Trocar mapa ======= */
+function changeMap(name){
+  if(!maps[name]) return;
+  activeMap=name;
+  mapImg.src=maps[name].src;
+  Object.assign(routes,maps[name].routes);
+  specials.splice(0,specials.length,...maps[name].specials);
+  players.splice(0,players.length,...maps[name].players);
   drawAll();
-});
-
-mapWrap.addEventListener('pointermove', (ev)=>{
-  if(!pointerDownInfo && !dragging) return;
-  const pos = getCanvasCoords(ev.clientX, ev.clientY);
-  if(pointerDownInfo){
-    const dx = pos.x - pointerDownInfo.start.x;
-    const dy = pos.y - pointerDownInfo.start.y;
-    if(Math.hypot(dx,dy) > 6) pointerDownInfo.moved = true;
-  }
-  if(dragging){
-    if(dragging.type === 'player'){ players[dragging.index].x = pos.x; players[dragging.index].y = pos.y; }
-    if(dragging.type === 'special'){ specials[dragging.index].x = pos.x; specials[dragging.index].y = pos.y; }
-    if(dragging.type === 'route'){ routes[activeRoute][dragging.index].x = pos.x; routes[activeRoute][dragging.index].y = pos.y; }
-    drawAll();
-  }
-});
-
-mapWrap.addEventListener('pointerup', (ev)=>{
-  mapWrap.releasePointerCapture && mapWrap.releasePointerCapture(ev.pointerId);
-  const pos = getCanvasCoords(ev.clientX, ev.clientY);
-  // click vs long press behavior: if pointerDownInfo exists and didn't move, allow right-click style delete via long press
-  if(pointerDownInfo && !pointerDownInfo.moved){
-    // short click already handled adding; check if user wanted to remove a point via long press (time >500ms)
-    const timeHeld = Date.now() - pointerDownInfo.time;
-    if(timeHeld > 700){
-      // try to remove a nearby route point or special or player
-      for(let rid of routeIds){
-        const pts = routes[rid];
-        for(let i=0;i<pts.length;i++){
-          if(distance(pts[i], pos) < 12){
-            if(confirm('Remover este ponto da rota?')) { pts.splice(i,1); drawAll(); renderRoutesList(); }
-            pointerDownInfo = null; return;
-          }
-        }
-      }
-      for(let i=0;i<specials.length;i++){ if(distance(specials[i], pos) < 14){ if(confirm('Remover este marcador?')){ specials.splice(i,1); drawAll(); } pointerDownInfo=null; return; } }
-      for(let i=0;i<players.length;i++){ if(distance(players[i], pos) < 14){ if(confirm('Remover este player?')){ players.splice(i,1); drawAll(); } pointerDownInfo=null; return; } }
-    }
-  }
-  pointerDownInfo = null;
-  dragging = null;
-});
-
-mapWrap.addEventListener('contextmenu', (e)=> e.preventDefault());
-
-/* -------------------- Drawing -------------------- */
-function drawAll(){
-  // clear
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawGrid();
-  // draw routes (only visible ones)
-  routeIds.forEach(id => { if(visibleRoutes[id]) drawRoute(routes[id], colors[id], routeNames[id]); });
-  specials.forEach(s => drawSpecial(s));
-  players.forEach(p => drawPlayer(p));
-  if(measurePoints.length>0) drawMeasure();
-  drawLegend();
+  sidebar.classList.remove('show'); overlay.classList.remove('show');
 }
+mapSelector.addEventListener('change', ()=>{ changeMap(mapSelector.value); });
+btnBackMap.addEventListener('click', ()=>{ sidebar.classList.add('show'); overlay.classList.add('show'); hamburger.setAttribute('aria-expanded','true'); });
+btnFloatMap.addEventListener('click', ()=>{ sidebar.classList.add('show'); overlay.classList.add('show'); hamburger.setAttribute('aria-expanded','true'); });
 
-/* grid */
-function drawGrid(){
-  const step = Math.max(40, Math.round(Math.min(canvas.width, canvas.height) / 12));
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-  ctx.lineWidth = 1;
-  for(let x = 0; x < canvas.width/ (window.devicePixelRatio||1); x += step){
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x, canvas.height/(window.devicePixelRatio||1)); ctx.stroke();
-  }
-  for(let y = 0; y < canvas.height/(window.devicePixelRatio||1); y += step){
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width/(window.devicePixelRatio||1), y); ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/* route */
-function drawRoute(points, color, name){
-  if(!points || points.length===0) return;
-  ctx.save();
-  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineJoin='round'; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-  for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x, points[i].y);
-  ctx.stroke();
-  for(let i=0;i<points.length;i++){
-    const p = points[i];
-    ctx.beginPath(); ctx.fillStyle = color; ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = '12px Arial'; ctx.fillText((i+1), p.x+8, p.y-8);
-  }
-  // label near first point
-  if(name && points[0]){
-    ctx.fillStyle = color; ctx.font = 'bold 13px Arial'; ctx.fillText(name, points[0].x + 10, points[0].y + 20);
-  }
-  ctx.restore();
-}
-
-/* special */
-function drawSpecial(s){
-  ctx.save();
-  ctx.beginPath(); ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.arc(s.x, s.y, 12,0,Math.PI*2); ctx.fill(); ctx.stroke();
-  let emoji='❓'; if(s.type==='loot') emoji='📦'; if(s.type==='car') emoji='🚗'; if(s.type==='weapon') emoji='🔫'; if(s.type==='sniper') emoji='🎯'; if(s.type==='drop') emoji='🎁';
-  ctx.font='16px Arial'; ctx.fillStyle='#fff'; ctx.fillText(emoji, s.x-8, s.y+6);
-  if(s.name){ ctx.font='12px Arial'; ctx.fillStyle='#fff'; ctx.fillText(s.name, s.x+16, s.y+6); }
-  ctx.restore();
-}
-
-/* player */
-function drawPlayer(p){
-  ctx.save();
-  ctx.beginPath(); ctx.fillStyle = p.color || '#fff'; ctx.arc(p.x, p.y, 10, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.font = 'bold 11px Arial'; ctx.fillText(p.name.charAt(0).toUpperCase(), p.x-4, p.y+4);
-  ctx.fillStyle = '#fff'; ctx.font = '12px Arial'; ctx.fillText(p.name, p.x+14, p.y+5);
-  ctx.restore();
-}
-
-/* measure */
-function drawMeasure(){
-  ctx.save();
-  if(measurePoints.length>=1){
-    ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(measurePoints[0].x, measurePoints[0].y,6,0,Math.PI*2); ctx.fill();
-  }
-  if(measurePoints.length===2){
-    const a = measurePoints[0], b = measurePoints[1];
-    ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-    const d = Math.round(Math.hypot(a.x-b.x,a.y-b.y));
-    const mx = (a.x+b.x)/2, my=(a.y+b.y)/2;
-    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(mx-40,my-18,80,26);
-    ctx.fillStyle='#fff'; ctx.font='12px Arial'; ctx.fillText(`${d}px`, mx-32, my);
-  }
-  ctx.restore();
-}
-
-/* legend */
-function drawLegend(){
-  ctx.save();
-  let x = 12, y = canvas.height/(window.devicePixelRatio||1) - 80;
-  ctx.globalAlpha = 0.95;
-  routeIds.forEach(id=>{
-    ctx.fillStyle = colors[id]; ctx.fillRect(x,y,14,12);
-    ctx.fillStyle='#fff'; ctx.font='12px Arial'; ctx.fillText(routeNames[id] || id, x+20, y+11);
-    y += 20;
-  });
-  ctx.restore();
-}
-
-/* -------------------- Replay (animated marker on polyline) -------------------- */
-function polylineLength(pts){ let s=0; for(let i=1;i<pts.length;i++) s+= distance(pts[i-1], pts[i]); return s; }
-function pointAtDistOnPolyline(pts, dist){
-  if(dist<=0) return pts[0];
-  let acc=0;
-  for(let i=1;i<pts.length;i++){
-    const a=pts[i-1], b=pts[i];
-    const seg = distance(a,b);
-    if(acc + seg >= dist){ const need = dist-acc; const t = need/seg; return { x: a.x + (b.x-a.x)*t, y: a.y + (b.y-a.y)*t }; }
-    acc += seg;
-  }
-  return pts[pts.length-1];
-}
-
-function startReplayForRoute(routeId){
-  const pts = routes[routeId]; if(!pts || pts.length<2) { alert('Rota precisa de 2+ pontos para replay'); return; }
-  const speedPx = 120; // px per second (approx)
-  const pathLen = polylineLength(pts);
-  const controller = { id: routeId, pos: 0, speed: speedPx, running: true, lastTs: null };
-  replayControllers.push(controller);
-  function step(ts){
-    if(!controller.running) return;
-    if(!controller.lastTs) controller.lastTs = ts;
-    const dt = (ts - controller.lastTs) / 1000; controller.lastTs = ts;
-    controller.pos += controller.speed * dt;
-    if(controller.pos >= pathLen){ controller.running = false; controller.pos = pathLen; drawAll(); // final pos
-      // remove controller
-      replayControllers = replayControllers.filter(c=>c!==controller);
-      return;
-    }
-    drawAll();
-    const pos = pointAtDistOnPolyline(pts, controller.pos);
-    ctx.save(); ctx.beginPath(); ctx.fillStyle = colors[routeId]; ctx.arc(pos.x,pos.y,9,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
-    requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-btns.replayAll.addEventListener('click', ()=> {
-  routeIds.forEach((id,idx)=> setTimeout(()=> startReplayForRoute(id), idx*600));
-});
-btns.stopReplay.addEventListener('click', ()=> { replayControllers.forEach(c=> c.running = false); replayControllers = []; drawAll(); });
-
-/* -------------------- Export PNG -------------------- */
-function exportPNG(){
-  const tmp = document.createElement('canvas');
-  const w = canvas.width / (window.devicePixelRatio||1);
-  const h = canvas.height / (window.devicePixelRatio||1);
-  tmp.width = w; tmp.height = h;
-  const tctx = tmp.getContext('2d');
-  const img = new Image(); img.crossOrigin='anonymous'; img.src = mapImg.src;
-  img.onload = ()=> {
-    tctx.drawImage(img,0,0,w,h);
-    // draw current canvas (CSS pixels)
-    tctx.drawImage(canvas, 0, 0, w, h);
-    const a = document.createElement('a'); a.href = tmp.toDataURL('image/png'); a.download = 'rota-bermuda.png'; a.click();
-  };
-  img.onerror = ()=> { alert('Erro ao carregar imagem do mapa (CORS?).'); };
-}
-
-/* -------------------- helpers iniciais -------------------- */
-setActiveBtnVisual(); renderRoutesList(); drawAll();
-
-/* -------------------- keyboard accessibility for canvas (delete last point) -------------------- */
-canvas.addEventListener('keydown', (e)=>{
-  if(e.key === 'z' && (e.ctrlKey || e.metaKey)){ // Ctrl/Cmd+Z undo last point on active route
-    const pts = routes[activeRoute];
-    if(pts && pts.length) { pts.pop(); drawAll(); renderRoutesList(); }
-  }
-});
+setActiveBtnVisual();
+drawAll();
 </script>
 </body>
 </html>
